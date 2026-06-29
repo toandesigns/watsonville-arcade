@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Atlas' Baseball Pong</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+<script src="../_arcade.js"></script>
+<style>
+  :root {
+    --sky-1: #7ec3ee;
+    --sky-2: #5aa6d2;
+    --grass-1: #7ec45b;
+    --grass-2: #4e8a3c;
+    --dirt-1: #c79268;
+    --dirt-2: #a06940;
+    --ink: #2a1a3a;
+    --cream: #fff8e8;
+    --stitch: #c0392b;
+    --bat-1: #c98a4a;
+    --bat-2: #8a4a18;
+    --font: "Fredoka", "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 70%, var(--grass-1) 100%);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  /* Distant clouds */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 8%;
+    left: 0; right: 0;
+    height: 50px;
+    background:
+      radial-gradient(ellipse 80px 20px at 18% 50%, rgba(255,255,255,0.85) 0 60%, transparent 70%),
+      radial-gradient(ellipse 50px 14px at 36% 30%, rgba(255,255,255,0.75) 0 60%, transparent 70%),
+      radial-gradient(ellipse 90px 22px at 70% 60%, rgba(255,255,255,0.85) 0 60%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 14px 16px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    flex: 0 0 auto;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 248, 232, 0.95);
+    color: var(--ink);
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .back:active { transform: scale(0.96); }
+  .title {
+    text-align: right;
+    flex: 1;
+    margin-left: 12px;
+  }
+  .title .sub {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.6;
+    font-weight: 600;
+  }
+  .title h1 {
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex: 0 0 auto;
+  }
+  .chip {
+    flex: 1;
+    background: rgba(255, 248, 232, 0.95);
+    border-radius: 18px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.18);
+  }
+  .chip .lbl {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(42, 26, 58, 0.55);
+    font-weight: 600;
+  }
+  .chip .val {
+    font-size: 22px;
+    line-height: 1;
+    margin-top: 2px;
+    font-weight: 700;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip .val .emoji { font-size: 18px; }
+
+  .stage {
+    flex: 1 1 auto;
+    position: relative;
+    border-radius: 24px;
+    background:
+      radial-gradient(80% 60% at 50% 30%, rgba(255, 248, 232, 0.20) 0%, transparent 70%),
+      linear-gradient(180deg, var(--grass-1) 0%, var(--grass-2) 100%);
+    box-shadow:
+      inset 0 0 0 3px rgba(255, 248, 232, 0.30),
+      0 12px 30px -8px rgba(0,0,0,0.30);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 14px;
+    background:
+      radial-gradient(80% 60% at 50% 50%, rgba(42, 26, 58, 0.60) 0%, rgba(42, 26, 58, 0.35) 100%);
+    backdrop-filter: blur(3px);
+    color: white;
+  }
+  .overlay.show { display: flex; }
+  .overlay .big {
+    font-size: 38px;
+    line-height: 1;
+    font-weight: 700;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+  }
+  .overlay .sub {
+    font-size: 14px;
+    opacity: 0.85;
+    max-width: 24ch;
+  }
+  .overlay button {
+    background: white;
+    color: var(--ink);
+    border: 0;
+    padding: 14px 28px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -4px rgba(0,0,0,0.30);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .overlay button:active { transform: scale(0.96); }
+
+  /* Player picker + leaderboard inside the overlay */
+  .picker {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 10px; max-width: 360px; margin: 4px auto 0;
+  }
+  .picker .who {
+    background: none; border: 0; padding: 6px 10px 8px;
+    color: white; font: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; border-radius: 14px;
+    transition: background 0.2s ease, transform 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .picker .who:hover { background: rgba(255,255,255,0.10); transform: translateY(-2px); }
+  .picker .avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: grid; place-items: center;
+    color: white; font-weight: 700; font-size: 18px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.30);
+    border: 2px solid rgba(255,255,255,0.20);
+  }
+  .picker .name {
+    font-size: 12px; font-weight: 600;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+    max-width: 80px; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .picker .who.add .avatar {
+    background: rgba(255, 248, 232, 0.18);
+    border-style: dashed; font-size: 26px; font-weight: 400;
+  }
+  .leaderboard {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 14px;
+    padding: 12px 14px;
+    width: 100%; max-width: 280px;
+    color: white; font-size: 13px;
+  }
+  .leaderboard .lb-title {
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; opacity: 0.65;
+    font-weight: 700; margin-bottom: 8px;
+  }
+  .leaderboard .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0; font-weight: 600;
+  }
+  .leaderboard .av {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 11px; color: white; font-weight: 700;
+    border: 1.5px solid rgba(255,255,255,0.20);
+    flex: 0 0 26px;
+  }
+  .leaderboard .n {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .leaderboard .s { font-weight: 700; color: #fff; }
+  .leaderboard .row.mine .n { color: #ffe7a8; }
+  .leaderboard .empty {
+    opacity: 0.6; font-size: 12px; text-align: center; padding: 6px 0 2px;
+  }
+
+  .who-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255, 248, 232, 0.95);
+    border: 0; cursor: pointer; font: inherit;
+    padding: 6px 12px 6px 6px; border-radius: 999px;
+    color: var(--ink);
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .who-chip .av {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center;
+    color: white; font-size: 10px; font-weight: 700;
+  }
+  .who-chip .label { font-size: 12px; font-weight: 700; }
+
+  .hint {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(42, 26, 58, 0.65);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    flex: 0 0 auto;
+  }
+
+  /* Hit feedback — floating "+1" callout */
+  .hit-feedback {
+    position: absolute;
+    pointer-events: none;
+    font-weight: 700;
+    font-size: 22px;
+    color: white;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+    animation: hitFly 0.9s ease-out forwards;
+    z-index: 2;
+  }
+  @keyframes hitFly {
+    0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+    20%  { transform: translate(-50%, -80%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -150%) scale(1);  opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="../">← Arcade</a>
+    <div class="title">
+      <div class="sub">Atlas'</div>
+      <h1>Baseball Pong</h1>
+    </div>
+  </header>
+
+  <div class="scoreboard">
+    <button class="who-chip" id="whoChip" type="button" aria-label="Switch player">
+      <span class="av" id="whoAv">?</span>
+      <span class="label" id="whoLabel">Pick player</span>
+    </button>
+    <div class="chip">
+      <div class="lbl">Hits</div>
+      <div class="val"><span id="score">0</span> <span class="emoji">⚾</span></div>
+    </div>
+    <div class="chip">
+      <div class="lbl">Best</div>
+      <div class="val"><span id="best">0</span> <span class="emoji">🏆</span></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas></canvas>
+    <div class="overlay" id="overlay">
+      <div class="big" id="verdict">Who's playing?</div>
+      <div class="sub" id="sub">Pick your batter.</div>
+      <div class="picker" id="picker"></div>
+      <button id="goBtn" style="display:none;">Play ball</button>
+      <div class="leaderboard" id="leaderboard" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="hint">Drag · swipe · two-finger scroll to swing the bat</div>
+</div>
+
+<script>
+(function () {
+  const KEY = 'arcade-best-baseball';
+  const GAME = 'baseball';
+  const stage   = document.getElementById('stage');
+  const canvas  = stage.querySelector('canvas');
+  const ctx     = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const verdict = document.getElementById('verdict');
+  const sub     = document.getElementById('sub');
+  const goBtn   = document.getElementById('goBtn');
+  const scoreEl = document.getElementById('score');
+  const bestEl  = document.getElementById('best');
+  const pickerEl = document.getElementById('picker');
+  const lbEl     = document.getElementById('leaderboard');
+  const whoChip  = document.getElementById('whoChip');
+  const whoAv    = document.getElementById('whoAv');
+  const whoLabel = document.getElementById('whoLabel');
+
+  let currentPlayer = (window.Arcade && Arcade.currentPlayer()) || null;
+  function refreshWhoChip() {
+    if (currentPlayer) {
+      whoAv.textContent = Arcade.initialOf(currentPlayer.name);
+      whoAv.style.background = currentPlayer.color;
+      whoLabel.textContent = currentPlayer.name;
+    } else {
+      whoAv.textContent = '?'; whoAv.style.background = '#666';
+      whoLabel.textContent = 'Pick player';
+    }
+  }
+  refreshWhoChip();
+  function openPicker() {
+    verdict.textContent = currentPlayer ? 'Switch player?' : "Who's playing?";
+    sub.textContent = currentPlayer ? 'Tap a name to swap.' : 'Pick your batter.';
+    pickerEl.style.display = 'flex';
+    goBtn.style.display = 'none';
+    lbEl.style.display = 'none';
+    overlay.classList.add('show');
+    if (window.Arcade) {
+      Arcade.renderPicker(pickerEl, {
+        currentName: currentPlayer ? currentPlayer.name : '',
+        onPick: (p) => {
+          currentPlayer = p;
+          Arcade.setCurrent(p.name);
+          refreshWhoChip();
+          showStart();
+        },
+      });
+    }
+  }
+  whoChip.addEventListener('click', openPicker);
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width  = Math.round(r.width  * dpr);
+    canvas.height = Math.round(r.height * dpr);
+  }
+  resize();
+  new ResizeObserver(resize).observe(stage);
+  window.addEventListener('resize', resize);
+
+  /* ---------- Pong state, baseball-flavored ---------- */
+  let paddle, ball, score, running, last, raf, dead, rot;
+  /* Animation state: bat swing on contact + ball squash on impact.
+     Both decay toward 0 over a couple frames so the visual feedback
+     is short and snappy. */
+  let swingT = 0;     // 1 → 0 over ~250ms after a hit
+  let squashT = 0;    // 1 → 0 over ~200ms after a hit
+  let trail = [];     // recent ball positions for a motion trail
+  let best = Number(localStorage.getItem(KEY) || 0);
+  bestEl.textContent = best;
+  const PADDLE_W = 0.26;           // bat is wider than v4 pong paddle (kid-friendly)
+  const PADDLE_H_PX = 18;          // bat thickness in CSS px (scaled at draw)
+  const BALL_R = 0.030;
+
+  function reset() {
+    paddle = { x: 0.5, w: PADDLE_W };
+    const angle = (-Math.PI / 2) + (Math.random() - 0.5) * 0.5;
+    const speed = 0.48;            // a touch slower for kids
+    ball = {
+      x: 0.5, y: 0.30,
+      vx: Math.cos(angle) * speed,
+      vy: Math.abs(Math.sin(angle)) * speed,
+      spin: 0,
+    };
+    rot = 0;
+    swingT = 0;
+    squashT = 0;
+    trail.length = 0;
+    score = 0;
+    scoreEl.textContent = '0';
+    running = false;
+    dead = false;
+    last = 0;
+    draw();
+  }
+
+  function tick(ts) {
+    if (!running) return;
+    if (!last) last = ts;
+    const dt = Math.min(0.04, (ts - last) / 1000);
+    last = ts;
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+    rot   += ball.spin * dt;
+
+    /* Decay the per-hit animations toward zero. */
+    if (swingT  > 0) swingT  = Math.max(0, swingT  - dt * 4.0);   // ~250ms
+    if (squashT > 0) squashT = Math.max(0, squashT - dt * 5.0);   // ~200ms
+
+    /* Motion trail — remember a handful of recent ball positions. */
+    trail.push({ x: ball.x, y: ball.y });
+    if (trail.length > 7) trail.shift();
+
+    /* walls (left, right, top) */
+    if (ball.x < BALL_R)     { ball.x = BALL_R;     ball.vx =  Math.abs(ball.vx); }
+    if (ball.x > 1 - BALL_R) { ball.x = 1 - BALL_R; ball.vx = -Math.abs(ball.vx); }
+    if (ball.y < BALL_R)     { ball.y = BALL_R;     ball.vy =  Math.abs(ball.vy); }
+
+    /* bat at y ≈ 0.90 (slightly higher to give kids more reaction time) */
+    const paddleYTop = 0.90;
+    if (ball.y >= paddleYTop - BALL_R && ball.vy > 0) {
+      const left  = paddle.x - paddle.w / 2;
+      const right = paddle.x + paddle.w / 2;
+      if (ball.x >= left && ball.x <= right) {
+        ball.y = paddleYTop - BALL_R;
+        const offset = (ball.x - paddle.x) / (paddle.w / 2);   // -1..1
+        const speed  = Math.hypot(ball.vx, ball.vy) * 1.035;
+        const newAngle = -Math.PI / 2 + offset * (Math.PI / 3);
+        ball.vx = Math.cos(newAngle) * speed;
+        ball.vy = Math.sin(newAngle) * speed;
+        ball.spin = offset * 8;
+        /* Fire the contact animations: bat swings the direction of
+           the ball's deflection, ball squashes briefly. */
+        swingT = 1;
+        squashT = 1;
+        trail.length = 0;   // reset trail so it doesn't overlap with new direction
+        score++;
+        scoreEl.textContent = String(score);
+        if (score > best) {
+          best = score;
+          bestEl.textContent = String(best);
+          localStorage.setItem(KEY, String(best));
+        }
+        spawnHitFeedback();
+      }
+    }
+
+    /* miss */
+    if (ball.y > 1.05) return die();
+
+    draw();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function die() {
+    running = false; dead = true;
+    cancelAnimationFrame(raf);
+    if (window.Arcade && currentPlayer && score > 0) {
+      Arcade.addScore(GAME, currentPlayer.name, score);
+    }
+    showOver();
+  }
+
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    /* Pitcher's mound — dirt circle near top */
+    const moundX = w * 0.5;
+    const moundY = h * 0.18;
+    const moundR = Math.min(w, h) * 0.16;
+    const moundGrad = ctx.createRadialGradient(moundX, moundY - moundR * 0.3, moundR * 0.2, moundX, moundY, moundR);
+    moundGrad.addColorStop(0, '#d8a878');
+    moundGrad.addColorStop(1, '#a06940');
+    ctx.fillStyle = moundGrad;
+    ctx.beginPath(); ctx.ellipse(moundX, moundY, moundR, moundR * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    /* pitcher's rubber (white slab) */
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(moundX - moundR * 0.20, moundY - 2, moundR * 0.40, 4);
+
+    /* Grass mowing stripes (subtle) */
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(0, h * (0.40 + i * 0.10), w, h * 0.05);
+    }
+
+    /* Home plate near the bottom */
+    const homeY = h * 0.96;
+    const homeW = w * 0.13;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(w/2 - homeW/2, homeY);
+    ctx.lineTo(w/2 + homeW/2, homeY);
+    ctx.lineTo(w/2 + homeW/2 * 0.8, homeY + homeW * 0.35);
+    ctx.lineTo(w/2, homeY + homeW * 0.55);
+    ctx.lineTo(w/2 - homeW/2 * 0.8, homeY + homeW * 0.35);
+    ctx.closePath();
+    ctx.fill();
+
+    /* Motion trail behind the ball — fading discs at recent positions */
+    const brBase = BALL_R * Math.min(w, h) * 1.6;
+    trail.forEach((p, i) => {
+      const a = (i + 1) / trail.length;
+      const tr = brBase * (0.4 + a * 0.5);
+      ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.18})`;
+      ctx.beginPath(); ctx.arc(p.x * w, p.y * h, tr, 0, Math.PI * 2); ctx.fill();
+    });
+
+    /* Baseball — white sphere with red stitching */
+    const bx = ball.x * w, by = ball.y * h;
+    const br = brBase;
+
+    /* shadow under ball */
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(bx, by + br * 0.85, br * 0.85, br * 0.30, 0, 0, Math.PI * 2); ctx.fill();
+
+    /* ball body — squash + stretch on contact */
+    const sx = 1 + squashT * 0.30;          // wider on hit
+    const sy = 1 - squashT * 0.18;          // squatter on hit
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(rot);
+    ctx.scale(sx, sy);
+    const ballGrad = ctx.createRadialGradient(-br*0.3, -br*0.4, br*0.2, 0, 0, br);
+    ballGrad.addColorStop(0, '#ffffff');
+    ballGrad.addColorStop(1, '#e0d8c8');
+    ctx.fillStyle = ballGrad;
+    ctx.beginPath(); ctx.arc(0, 0, br, 0, Math.PI * 2); ctx.fill();
+    /* outline */
+    ctx.strokeStyle = '#c8b8a0';
+    ctx.lineWidth = Math.max(1, br * 0.06);
+    ctx.beginPath(); ctx.arc(0, 0, br, 0, Math.PI * 2); ctx.stroke();
+    /* red stitching — two curves */
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = Math.max(1.5, br * 0.12);
+    ctx.lineCap = 'round';
+    /* left curve */
+    ctx.beginPath();
+    ctx.arc(-br * 0.55, 0, br * 0.95, -Math.PI * 0.32, Math.PI * 0.32);
+    ctx.stroke();
+    /* right curve */
+    ctx.beginPath();
+    ctx.arc( br * 0.55, 0, br * 0.95, Math.PI - 0.32 * Math.PI, Math.PI + 0.32 * Math.PI);
+    ctx.stroke();
+    /* stitch tick marks */
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = Math.max(1, br * 0.08);
+    for (let i = -2; i <= 2; i++) {
+      const a = i * 0.18;
+      const xa = -br * 0.55 + Math.cos(a) * br * 0.95;
+      const ya = 0          + Math.sin(a) * br * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(xa - br * 0.04, ya - br * 0.18);
+      ctx.lineTo(xa + br * 0.04, ya + br * 0.18);
+      ctx.stroke();
+    }
+    for (let i = -2; i <= 2; i++) {
+      const a = Math.PI + i * 0.18;
+      const xa = br * 0.55 + Math.cos(a) * br * 0.95;
+      const ya = 0         + Math.sin(a) * br * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(xa - br * 0.04, ya - br * 0.18);
+      ctx.lineTo(xa + br * 0.04, ya + br * 0.18);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    /* Bat — wooden paddle drawn as a rotated tapered rectangle.
+       On contact the bat snaps into a swing (rotate + lift), then
+       eases back to rest while swingT decays toward 0. */
+    const px = paddle.x * w;
+    const py = 0.90 * h + (PADDLE_H_PX * (h / 360)) / 2 - swingT * 18;
+    const pw = paddle.w * w;
+    const ph = Math.max(12, PADDLE_H_PX * (h / 360));
+    /* Ease-out curve so the swing feels punchy at the start. */
+    const swingEase = 1 - Math.pow(1 - swingT, 3);
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(-0.06 - swingEase * 0.55);
+    /* wood grain gradient */
+    const batGrad = ctx.createLinearGradient(-pw/2, 0, pw/2, 0);
+    batGrad.addColorStop(0,    '#a06535');    // knob/handle (darker)
+    batGrad.addColorStop(0.25, '#c98a4a');
+    batGrad.addColorStop(1,    '#e8b070');    // barrel (lighter)
+    ctx.fillStyle = batGrad;
+
+    /* Tapered bat shape: narrow handle on left, fatter barrel on right */
+    ctx.beginPath();
+    const handleR = ph * 0.32;
+    const barrelR = ph * 0.55;
+    ctx.moveTo(-pw/2 + handleR, -handleR);
+    ctx.lineTo( pw/2 - barrelR, -barrelR);
+    ctx.arc( pw/2 - barrelR, 0, barrelR, -Math.PI/2, Math.PI/2);
+    ctx.lineTo(-pw/2 + handleR,  handleR);
+    ctx.arc(-pw/2 + handleR, 0, handleR, Math.PI/2, -Math.PI/2);
+    ctx.closePath();
+    ctx.fill();
+    /* knob at handle end */
+    ctx.fillStyle = '#7a4818';
+    ctx.beginPath();
+    ctx.arc(-pw/2 + handleR * 0.6, 0, handleR * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    /* wood-grain lines */
+    ctx.strokeStyle = 'rgba(122, 72, 24, 0.35)';
+    ctx.lineWidth = 1;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-pw/2 * 0.7, i * ph * 0.18);
+      ctx.lineTo( pw/2 * 0.85, i * ph * 0.22);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function spawnHitFeedback() {
+    const r = stage.getBoundingClientRect();
+    const bx = ball.x * r.width;
+    const by = ball.y * r.height;
+    const fb = document.createElement('div');
+    fb.className = 'hit-feedback';
+    const calls = ['+1', 'HIT!', 'POW!', 'CRACK!', 'NICE!'];
+    fb.textContent = calls[Math.floor(Math.random() * calls.length)];
+    fb.style.left = bx + 'px';
+    fb.style.top  = (by - 10) + 'px';
+    stage.appendChild(fb);
+    setTimeout(() => fb.remove(), 950);
+  }
+
+  function setX(x) {
+    paddle.x = Math.max(paddle.w / 2, Math.min(1 - paddle.w / 2, x));
+    if (!running) draw();
+  }
+  function start() {
+    if (dead) reset();
+    if (running) return;
+    overlay.classList.remove('show');
+    running = true; last = 0;
+    raf = requestAnimationFrame(tick);
+  }
+  function showOver() {
+    const who = currentPlayer ? currentPlayer.name : 'You';
+    const homeRun = score >= best && score > 0;
+    verdict.textContent = homeRun ? '⚾ Home run best!' : `${who} struck out`;
+    const lines = [
+      `${score} ${score === 1 ? 'hit' : 'hits'}. Step up again, ${who}?`,
+      `Got ${score}. Swing for the fence!`,
+      `${score} hits. Best is ${best}.`,
+    ];
+    sub.textContent = lines[Math.floor(Math.random() * lines.length)];
+    goBtn.textContent = 'Play again';
+    pickerEl.style.display = 'none';
+    goBtn.style.display = '';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer ? currentPlayer.name : '' });
+    }
+    overlay.classList.add('show');
+  }
+  function showStart() {
+    if (!currentPlayer) { openPicker(); return; }
+    verdict.textContent = `Batter up, ${currentPlayer.name}!`;
+    sub.textContent = 'Drag, swipe or two-finger scroll to swing the bat.';
+    goBtn.textContent = 'Play ball';
+    pickerEl.style.display = 'none';
+    goBtn.style.display = '';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer.name });
+    }
+    overlay.classList.add('show');
+  }
+  goBtn.addEventListener('click', start);
+
+  /* ---------- Gestures ---------- */
+  let dragging = false;
+  function pointerXFrac(e) {
+    const r = canvas.getBoundingClientRect();
+    return (e.clientX - r.left) / r.width;
+  }
+  stage.addEventListener('pointerdown', (e) => {
+    /* Don't auto-start from a stage tap while the overlay is up —
+       overlay buttons handle that explicitly. */
+    if (overlay.classList.contains('show')) return;
+    e.preventDefault();
+    if (!running && !dead) { start(); return; }
+    if (dead) { start(); return; }
+    dragging = true;
+    setX(pointerXFrac(e));
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    setX(pointerXFrac(e));
+  });
+  stage.addEventListener('pointerup', () => { dragging = false; });
+  stage.addEventListener('pointercancel', () => { dragging = false; });
+
+  /* Trackpad two-finger scroll → paddle motion.
+     macOS trackpad horizontal swipes fire wheel events with deltaX;
+     a vertical swipe (deltaY) also moves the bat so single-finger
+     scroll wheels work too. Both are captured and prevented from
+     scrolling the page. */
+  stage.addEventListener('wheel', (e) => {
+    if (overlay.classList.contains('show')) return;
+    if (!running && !dead) start();
+    e.preventDefault();
+    const lineToPx = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? canvas.getBoundingClientRect().width : 1);
+    const dx = e.deltaX * lineToPx;
+    const dy = e.deltaY * lineToPx;
+    const delta = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+    const w = canvas.getBoundingClientRect().width || 1;
+    setX(paddle.x + (delta / w) * 1.4);
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key;
+    const step = 0.08;
+    if (k === 'ArrowLeft' || k === 'a')  { setX(paddle.x - step); e.preventDefault(); }
+    else if (k === 'ArrowRight' || k === 'd') { setX(paddle.x + step); e.preventDefault(); }
+    else if (k === ' ' || k === 'Enter') { start(); e.preventDefault(); }
+  });
+
+  reset();
+  showStart();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Dakota's Safari</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+<script src="../_arcade.js"></script>
+<style>
+  :root {
+    --sky-1: #ffd684;
+    --sky-2: #ff9b52;
+    --sand-1: #e6b86a;
+    --sand-2: #c79248;
+    --grass: #6e8a3a;
+    --grass-dark: #4f7028;
+    --ink: #2a1a3a;
+    --cream: #fff8e8;
+    --font: "Fredoka", "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 55%, var(--sand-1) 100%);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  /* Distant acacia silhouettes */
+  body::before {
+    content: '';
+    position: fixed;
+    left: 0; right: 0; bottom: 35%;
+    height: 60px;
+    background:
+      radial-gradient(ellipse 60px 16px at 10% 100%, rgba(58, 80, 28, 0.5) 0 60%, transparent 70%),
+      radial-gradient(ellipse 40px 12px at 32% 100%, rgba(58, 80, 28, 0.4) 0 60%, transparent 70%),
+      radial-gradient(ellipse 70px 18px at 65% 100%, rgba(58, 80, 28, 0.55) 0 60%, transparent 70%),
+      radial-gradient(ellipse 50px 14px at 90% 100%, rgba(58, 80, 28, 0.45) 0 60%, transparent 70%);
+    pointer-events: none;
+  }
+  /* Sun on horizon */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff3c2 0%, #ffd76a 60%, transparent 100%);
+    filter: blur(2px);
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 14px 16px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    flex: 0 0 auto;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 248, 232, 0.92);
+    color: var(--ink);
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .back:active { transform: scale(0.96); }
+  .title {
+    text-align: right;
+    flex: 1;
+    margin-left: 12px;
+  }
+  .title .sub {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(42, 26, 58, 0.55);
+    font-weight: 600;
+  }
+  .title h1 {
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex: 0 0 auto;
+  }
+  .chip {
+    flex: 1;
+    background: rgba(255, 248, 232, 0.92);
+    border-radius: 18px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.18);
+  }
+  .chip .lbl {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(42, 26, 58, 0.55);
+    font-weight: 600;
+  }
+  .chip .val {
+    font-size: 22px;
+    line-height: 1;
+    margin-top: 2px;
+    font-weight: 700;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip .val .emoji { font-size: 18px; }
+
+  .stage {
+    flex: 1 1 auto;
+    position: relative;
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255, 248, 232, 0.30) 0%, transparent 50%),
+      linear-gradient(180deg, var(--sand-2) 0%, #b07a32 100%);
+    box-shadow:
+      inset 0 0 0 3px rgba(255, 248, 232, 0.30),
+      0 12px 30px -8px rgba(0,0,0,0.30);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 14px;
+    background:
+      radial-gradient(80% 60% at 50% 50%, rgba(42, 26, 58, 0.55) 0%, rgba(42, 26, 58, 0.30) 100%);
+    backdrop-filter: blur(3px);
+    color: white;
+  }
+  .overlay.show { display: flex; }
+  .overlay .big {
+    font-size: 38px;
+    line-height: 1;
+    font-weight: 700;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+  }
+  .overlay .sub {
+    font-size: 14px;
+    opacity: 0.85;
+    max-width: 24ch;
+  }
+  .overlay button {
+    background: white;
+    color: var(--ink);
+    border: 0;
+    padding: 14px 28px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -4px rgba(0,0,0,0.30);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .overlay button:active { transform: scale(0.96); }
+
+  /* Player picker + leaderboard inside the overlay */
+  .picker {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 10px;
+    max-width: 360px;
+    margin: 4px auto 0;
+  }
+  .picker .who {
+    background: none; border: 0; padding: 6px 10px 8px;
+    color: white; font: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer;
+    border-radius: 14px;
+    transition: background 0.2s ease, transform 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .picker .who:hover { background: rgba(255,255,255,0.10); transform: translateY(-2px); }
+  .picker .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.30);
+    border: 2px solid rgba(255,255,255,0.20);
+  }
+  .picker .name {
+    font-size: 12px; font-weight: 600;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+    max-width: 80px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .picker .who.add .avatar {
+    background: rgba(255, 248, 232, 0.18);
+    border-style: dashed;
+    font-size: 26px;
+    font-weight: 400;
+  }
+  .leaderboard {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 14px;
+    padding: 12px 14px;
+    width: 100%;
+    max-width: 280px;
+    color: white;
+    font-size: 13px;
+  }
+  .leaderboard .lb-title {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .leaderboard .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0;
+    font-weight: 600;
+  }
+  .leaderboard .av {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 11px;
+    color: white;
+    font-weight: 700;
+    border: 1.5px solid rgba(255,255,255,0.20);
+    flex: 0 0 26px;
+  }
+  .leaderboard .n {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .leaderboard .s {
+    font-weight: 700;
+    color: #fff;
+  }
+  .leaderboard .row.mine .n { color: #ffe7a8; }
+  .leaderboard .empty {
+    opacity: 0.6;
+    font-size: 12px;
+    text-align: center;
+    padding: 6px 0 2px;
+  }
+
+  /* Tiny switch-player chip in the scoreboard area */
+  .who-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255, 248, 232, 0.92);
+    border: 0; cursor: pointer; font: inherit;
+    padding: 6px 12px 6px 6px;
+    border-radius: 999px;
+    color: var(--ink);
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .who-chip .av {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .who-chip .label {
+    font-size: 12px; font-weight: 700;
+  }
+
+  .hint {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(42, 26, 58, 0.65);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 460px) {
+    .title h1 { font-size: 18px; }
+    .title .sub { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="../">← Arcade</a>
+    <div class="title">
+      <div class="sub">Safari Snake</div>
+      <h1>Dakota's Safari</h1>
+    </div>
+  </header>
+
+  <div class="scoreboard">
+    <button class="who-chip" id="whoChip" type="button" aria-label="Switch player">
+      <span class="av" id="whoAv">?</span>
+      <span class="label" id="whoLabel">Pick player</span>
+    </button>
+    <div class="chip">
+      <div class="lbl">Animals</div>
+      <div class="val"><span id="score">0</span> <span class="emoji">🦁</span></div>
+    </div>
+    <div class="chip">
+      <div class="lbl">Best</div>
+      <div class="val"><span id="best">0</span> <span class="emoji">🏆</span></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas></canvas>
+    <div class="overlay" id="overlay">
+      <div class="big" id="verdict">Who's playing?</div>
+      <div class="sub" id="sub">Pick your safari guide.</div>
+      <div class="picker" id="picker"></div>
+      <button id="goBtn" style="display:none;">Start safari</button>
+      <div class="leaderboard" id="leaderboard" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="hint">Swipe up / down / left / right to steer</div>
+</div>
+
+<script>
+(function () {
+  const KEY = 'arcade-best-safari';
+  const GAME = 'safari';
+  const stage   = document.getElementById('stage');
+  const canvas  = stage.querySelector('canvas');
+  const ctx     = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const verdict = document.getElementById('verdict');
+  const sub     = document.getElementById('sub');
+  const goBtn   = document.getElementById('goBtn');
+  const scoreEl = document.getElementById('score');
+  const bestEl  = document.getElementById('best');
+  const pickerEl    = document.getElementById('picker');
+  const lbEl        = document.getElementById('leaderboard');
+  const whoChip     = document.getElementById('whoChip');
+  const whoAv       = document.getElementById('whoAv');
+  const whoLabel    = document.getElementById('whoLabel');
+
+  let currentPlayer = (window.Arcade && Arcade.currentPlayer()) || null;
+  function refreshWhoChip() {
+    if (currentPlayer) {
+      whoAv.textContent = Arcade.initialOf(currentPlayer.name);
+      whoAv.style.background = currentPlayer.color;
+      whoLabel.textContent = currentPlayer.name;
+    } else {
+      whoAv.textContent = '?'; whoAv.style.background = '#666';
+      whoLabel.textContent = 'Pick player';
+    }
+  }
+  refreshWhoChip();
+  function openPicker() {
+    verdict.textContent = currentPlayer ? 'Switch player?' : "Who's playing?";
+    sub.textContent = currentPlayer ? 'Tap a name to swap.' : 'Pick your safari guide.';
+    pickerEl.style.display = 'flex';
+    goBtn.style.display = 'none';
+    lbEl.style.display = 'none';
+    overlay.classList.add('show');
+    if (window.Arcade) {
+      Arcade.renderPicker(pickerEl, {
+        currentName: currentPlayer ? currentPlayer.name : '',
+        onPick: (p) => {
+          currentPlayer = p;
+          Arcade.setCurrent(p.name);
+          refreshWhoChip();
+          showStart();
+        },
+      });
+    }
+  }
+  whoChip.addEventListener('click', openPicker);
+
+  /* ---------- Sizing ---------- */
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width  = Math.round(r.width  * dpr);
+    canvas.height = Math.round(r.height * dpr);
+  }
+  resize();
+  new ResizeObserver(resize).observe(stage);
+  window.addEventListener('resize', resize);
+
+  /* ---------- Animal cast — wide variety of safari sightings.
+     Rendered as emoji on the canvas so each one reads as its
+     own creature, not just a color. */
+  const ANIMALS = [
+    '🦁','🐘','🦒','🦓','🐒','🐊','🦛','🦏','🐆','🦍',
+    '🐅','🐃','🐪','🦌','🦉','🦜','🦩','🐍','🦎','🐢',
+    '🐸','🐝','🦋','🦅','🐺','🦝','🦨','🦫','🦡','🐇',
+    '🦔','🐗','🐴','🐄','🐑','🐂','🦃','🦚','🦢','🐦',
+  ];
+
+  /* ---------- Snake game state ---------- */
+  const COLS = 16, ROWS = 18;
+  let snake, dir, nextDir, food, score, running, last, acc, raf, dead;
+  let best = Number(localStorage.getItem(KEY) || 0);
+  bestEl.textContent = best;
+  const STEP_MS = 140;
+
+  function reset() {
+    snake = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+    dir = { x: 1, y: 0 };
+    nextDir = dir;
+    placeFood();
+    score = 0;
+    scoreEl.textContent = '0';
+    running = false;
+    dead = false;
+    acc = 0; last = 0;
+    draw();
+  }
+  function placeFood() {
+    let f, animal;
+    do { f = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) }; }
+    while (snake.some(s => s.x === f.x && s.y === f.y));
+    /* Avoid an immediate repeat so the same animal doesn't appear
+       twice in a row — variety is the point. */
+    do { animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)]; }
+    while (food && food.animal === animal && ANIMALS.length > 1);
+    food = { ...f, animal };
+  }
+  function tick(ts) {
+    if (!running) return;
+    if (!last) last = ts;
+    acc += ts - last;
+    last = ts;
+    while (acc >= STEP_MS) { step(); acc -= STEP_MS; }
+    draw();
+    raf = requestAnimationFrame(tick);
+  }
+  function step() {
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS) return die();
+    if (snake.some(s => s.x === head.x && s.y === head.y)) return die();
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      scoreEl.textContent = String(score);
+      if (score > best) {
+        best = score;
+        bestEl.textContent = String(best);
+        localStorage.setItem(KEY, String(best));
+      }
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+  function die() {
+    running = false; dead = true;
+    cancelAnimationFrame(raf);
+    /* Record this run in the leaderboard under the current player. */
+    if (window.Arcade && currentPlayer && score > 0) {
+      Arcade.addScore(GAME, currentPlayer.name, score);
+    }
+    showOver();
+  }
+
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    const cell = Math.min(w / COLS, h / ROWS);
+    const offX = (w - cell * COLS) / 2;
+    const offY = (h - cell * ROWS) / 2;
+
+    /* Sand bg (transparent — let the stage gradient show) */
+    ctx.clearRect(0, 0, w, h);
+
+    /* Soft grid tufts (decorative) */
+    ctx.fillStyle = 'rgba(110, 138, 58, 0.15)';
+    for (let i = 0; i < 22; i++) {
+      const gx = (i * 137) % w;
+      const gy = (i * 211) % h;
+      ctx.beginPath();
+      ctx.ellipse(gx, gy, 6 * (h/600), 3 * (h/600), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* Food — the next animal sighting, drawn as an emoji on a
+       soft cream backdrop so it pops on the sandy field. */
+    const fx = offX + food.x * cell + cell / 2;
+    const fy = offY + food.y * cell + cell / 2;
+    const fr = cell * 0.48;
+    /* backdrop disc (cream) with soft shadow */
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.arc(fx, fy + 2, fr * 1.05, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 248, 232, 0.85)';
+    ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.fill();
+    /* animal emoji */
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const emojiPx = Math.round(cell * 0.62);
+    ctx.font = `${emojiPx}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif`;
+    ctx.fillText(food.animal, fx, fy + emojiPx * 0.06);
+    ctx.restore();
+
+    /* Snake body — green spotted python */
+    snake.forEach((s, i) => {
+      const isHead = i === 0;
+      const t = i / Math.max(1, snake.length - 1);
+      const sx = offX + s.x * cell + cell / 2;
+      const sy = offY + s.y * cell + cell / 2;
+      const r  = cell * (isHead ? 0.46 : 0.40 - t * 0.10);
+
+      /* body — gradient from bright to deeper green */
+      const grad = ctx.createRadialGradient(sx - r*0.3, sy - r*0.3, r*0.2, sx, sy, r);
+      grad.addColorStop(0, isHead ? '#a8d96a' : '#86b84a');
+      grad.addColorStop(1, isHead ? '#3a6a1a' : '#2a5210');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+
+      /* spots */
+      if (!isHead && i % 2 === 0) {
+        ctx.fillStyle = '#3a5a18';
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.30, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    /* Eyes on head — facing direction of movement */
+    if (snake.length) {
+      const head = snake[0];
+      const hx = offX + head.x * cell + cell / 2;
+      const hy = offY + head.y * cell + cell / 2;
+      const r  = cell * 0.46;
+      const eyeR = Math.max(2, r * 0.18);
+      const offForward = r * 0.40;
+      const offSide    = r * 0.36;
+      const fwdX = dir.x * offForward;
+      const fwdY = dir.y * offForward;
+      const sideX = -dir.y * offSide;
+      const sideY =  dir.x * offSide;
+      [-1, 1].forEach(side => {
+        const ex = hx + fwdX + sideX * side;
+        const ey = hy + fwdY + sideY * side;
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath(); ctx.arc(ex + dir.x * eyeR * 0.4, ey + dir.y * eyeR * 0.4, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+      });
+      /* tiny tongue when running */
+      if (running) {
+        ctx.strokeStyle = '#c93a3a';
+        ctx.lineWidth = Math.max(1, r * 0.10);
+        ctx.beginPath();
+        ctx.moveTo(hx + fwdX * 1.15, hy + fwdY * 1.15);
+        ctx.lineTo(hx + fwdX * 1.6,  hy + fwdY * 1.6);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function setDir(dx, dy) {
+    if (dead) return;
+    if (dx === -dir.x && dy === -dir.y) return;
+    if (dx === dir.x && dy === dir.y) return;
+    nextDir = { x: dx, y: dy };
+  }
+  function start() {
+    if (dead) reset();
+    if (running) return;
+    overlay.classList.remove('show');
+    running = true; last = 0; acc = 0;
+    raf = requestAnimationFrame(tick);
+  }
+  function showOver() {
+    const who = currentPlayer ? currentPlayer.name : 'You';
+    const msgs = [
+      `${who} spotted ${score} ${score === 1 ? 'animal' : 'animals'}!`,
+      `${score} ${score === 1 ? 'sighting' : 'sightings'}. Nice safari, ${who}.`,
+      `Got ${score}. Camp again, ${who}?`,
+    ];
+    verdict.textContent = score >= best && score > 0 ? '🏆 New best!' : 'End of safari';
+    sub.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+    goBtn.textContent = 'Go again';
+    pickerEl.style.display = 'none';
+    goBtn.style.display = '';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer ? currentPlayer.name : '' });
+    }
+    overlay.classList.add('show');
+  }
+  function showStart() {
+    if (!currentPlayer) { openPicker(); return; }
+    verdict.textContent = `Ready, ${currentPlayer.name}?`;
+    sub.textContent = 'Swipe to lead your safari. Spot the animals!';
+    goBtn.textContent = 'Start safari';
+    pickerEl.style.display = 'none';
+    goBtn.style.display = '';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer.name });
+    }
+    overlay.classList.add('show');
+  }
+  goBtn.addEventListener('click', start);
+
+  /* ---------- Touch / pointer gestures ---------- */
+  let sx = 0, sy = 0, swiping = false;
+  stage.addEventListener('pointerdown', (e) => {
+    /* Ignore taps while the overlay (picker / start / game-over) is up;
+       its own buttons handle starting. Otherwise picker taps bubble up
+       and accidentally start a game we haven't picked a player for. */
+    if (overlay.classList.contains('show')) return;
+    e.preventDefault();
+    if (!running && !dead) { start(); return; }
+    if (dead) { start(); return; }
+    sx = e.clientX; sy = e.clientY; swiping = true;
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!swiping) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 18 || Math.abs(dy) > 18) {
+      if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 1 : -1, 0);
+      else                              setDir(0, dy > 0 ? 1 : -1);
+      sx = e.clientX; sy = e.clientY;
+    }
+  });
+  stage.addEventListener('pointerup', () => { swiping = false; });
+  stage.addEventListener('pointercancel', () => { swiping = false; });
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key;
+    if (k === 'ArrowUp' || k === 'w') setDir(0, -1);
+    else if (k === 'ArrowDown' || k === 's') setDir(0, 1);
+    else if (k === 'ArrowLeft' || k === 'a') setDir(-1, 0);
+    else if (k === 'ArrowRight' || k === 'd') setDir(1, 0);
+    else if (k === ' ' || k === 'Enter') { start(); }
+    else return;
+    e.preventDefault();
+  });
+
+  reset();
+  showStart();
+})();
+</script>
+
+</body>
+</html>
