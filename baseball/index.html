@@ -748,10 +748,9 @@
   stage.addEventListener('pointercancel', () => { dragging = false; });
 
   /* Trackpad two-finger scroll → paddle motion.
-     macOS trackpad horizontal swipes fire wheel events with deltaX;
-     a vertical swipe (deltaY) also moves the bat so single-finger
-     scroll wheels work too. Both are captured and prevented from
-     scrolling the page. */
+     Wheel deltas report scroll direction; with natural scrolling
+     (macOS default) that's opposite to finger direction, so we
+     negate so the bat tracks the fingers, not the page. */
   stage.addEventListener('wheel', (e) => {
     if (overlay.classList.contains('show')) return;
     if (!running && !dead) start();
@@ -761,7 +760,7 @@
     const dy = e.deltaY * lineToPx;
     const delta = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
     const w = canvas.getBoundingClientRect().width || 1;
-    setX(paddle.x + (delta / w) * 1.4);
+    setX(paddle.x - (delta / w) * 1.4);
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
