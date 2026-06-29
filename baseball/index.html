@@ -64,6 +64,7 @@
     justify-content: space-between;
     padding-bottom: 14px;
     flex: 0 0 auto;
+    gap: 8px;
   }
   .back {
     display: inline-flex;
@@ -80,6 +81,23 @@
     -webkit-tap-highlight-color: transparent;
   }
   .back:active { transform: scale(0.96); }
+  .lb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 248, 232, 0.95);
+    color: var(--ink);
+    border: 0;
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    cursor: pointer;
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lb-btn:active { transform: scale(0.96); }
   .title {
     text-align: right;
     flex: 1;
@@ -312,6 +330,7 @@
 <div class="wrap">
   <header>
     <a class="back" href="../">← Arcade</a>
+    <button class="lb-btn" id="lbBtn" type="button" aria-label="View leaderboard">🏆</button>
     <div class="title">
       <div class="sub">Atlas'</div>
       <h1>Baseball Pong</h1>
@@ -365,6 +384,8 @@
   const whoChip  = document.getElementById('whoChip');
   const whoAv    = document.getElementById('whoAv');
   const whoLabel = document.getElementById('whoLabel');
+  const lbBtn    = document.getElementById('lbBtn');
+  let lbPaused = false;
 
   let currentPlayer = (window.Arcade && Arcade.currentPlayer()) || null;
   function refreshWhoChip() {
@@ -379,6 +400,7 @@
   }
   refreshWhoChip();
   function openPicker() {
+    lbPaused = false;
     verdict.textContent = currentPlayer ? 'Switch player?' : "Who's playing?";
     sub.textContent = currentPlayer ? 'Tap a name to swap.' : 'Pick your batter.';
     pickerEl.style.display = 'flex';
@@ -398,6 +420,30 @@
     }
   }
   whoChip.addEventListener('click', openPicker);
+
+  /* Leaderboard button — pauses gameplay (if running) and surfaces
+     the same leaderboard view that the start/over screens use. */
+  function openLeaderboardView() {
+    if (!currentPlayer) { openPicker(); return; }
+    if (running) {
+      running = false;
+      cancelAnimationFrame(raf);
+      lbPaused = true;
+    }
+    verdict.textContent = '🏆 Leaderboard';
+    sub.textContent = 'Top hitters';
+    pickerEl.style.display = 'none';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer.name });
+    }
+    if (lbPaused)      goBtn.textContent = 'Back to game';
+    else if (dead)     goBtn.textContent = 'Play again';
+    else               goBtn.textContent = 'Play ball';
+    goBtn.style.display = '';
+    overlay.classList.add('show');
+  }
+  lbBtn.addEventListener('click', openLeaderboardView);
 
   function resize() {
     const r = stage.getBoundingClientRect();
@@ -721,7 +767,16 @@
     }
     overlay.classList.add('show');
   }
-  goBtn.addEventListener('click', start);
+  goBtn.addEventListener('click', () => {
+    if (lbPaused) {
+      lbPaused = false;
+      overlay.classList.remove('show');
+      running = true; last = 0;
+      raf = requestAnimationFrame(tick);
+    } else {
+      start();
+    }
+  });
 
   /* ---------- Gestures ---------- */
   let dragging = false;

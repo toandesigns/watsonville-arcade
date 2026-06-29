@@ -72,6 +72,7 @@
     justify-content: space-between;
     padding-bottom: 14px;
     flex: 0 0 auto;
+    gap: 8px;
   }
   .back {
     display: inline-flex;
@@ -88,6 +89,23 @@
     -webkit-tap-highlight-color: transparent;
   }
   .back:active { transform: scale(0.96); }
+  .lb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 248, 232, 0.92);
+    color: var(--ink);
+    border: 0;
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.15);
+    cursor: pointer;
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lb-btn:active { transform: scale(0.96); }
   .title {
     text-align: right;
     flex: 1;
@@ -340,8 +358,9 @@
 <div class="wrap">
   <header>
     <a class="back" href="../">← Arcade</a>
+    <button class="lb-btn" id="lbBtn" type="button" aria-label="View leaderboard">🏆</button>
     <div class="title">
-      <div class="sub">Safari Snake</div>
+      <div class="sub">Safari Axolotl</div>
       <h1>Dakota's Safari</h1>
     </div>
   </header>
@@ -393,6 +412,8 @@
   const whoChip     = document.getElementById('whoChip');
   const whoAv       = document.getElementById('whoAv');
   const whoLabel    = document.getElementById('whoLabel');
+  const lbBtn       = document.getElementById('lbBtn');
+  let lbPaused = false;
 
   let currentPlayer = (window.Arcade && Arcade.currentPlayer()) || null;
   function refreshWhoChip() {
@@ -407,6 +428,7 @@
   }
   refreshWhoChip();
   function openPicker() {
+    lbPaused = false;
     verdict.textContent = currentPlayer ? 'Switch player?' : "Who's playing?";
     sub.textContent = currentPlayer ? 'Tap a name to swap.' : 'Pick your safari guide.';
     pickerEl.style.display = 'flex';
@@ -426,6 +448,30 @@
     }
   }
   whoChip.addEventListener('click', openPicker);
+
+  /* Leaderboard button — pauses gameplay (if running) and surfaces
+     the same leaderboard view that the start/over screens use. */
+  function openLeaderboardView() {
+    if (!currentPlayer) { openPicker(); return; }
+    if (running) {
+      running = false;
+      cancelAnimationFrame(raf);
+      lbPaused = true;
+    }
+    verdict.textContent = '🏆 Leaderboard';
+    sub.textContent = 'Top safaris';
+    pickerEl.style.display = 'none';
+    lbEl.style.display = '';
+    if (window.Arcade) {
+      Arcade.renderLeaderboard(lbEl, GAME, { currentName: currentPlayer.name });
+    }
+    if (lbPaused)      goBtn.textContent = 'Back to game';
+    else if (dead)     goBtn.textContent = 'Go again';
+    else               goBtn.textContent = 'Start safari';
+    goBtn.style.display = '';
+    overlay.classList.add('show');
+  }
+  lbBtn.addEventListener('click', openLeaderboardView);
 
   /* ---------- Sizing ---------- */
   function resize() {
@@ -553,7 +599,36 @@
     ctx.fillText(food.animal, fx, fy + emojiPx * 0.06);
     ctx.restore();
 
-    /* Snake body — green spotted python */
+    /* Gills — feathery pink puffs on the sides of the axolotl head.
+       Drawn before the body so the head circle covers their bases and
+       only the fan tips peek out, like real axolotl plumes. */
+    if (snake.length) {
+      const head0 = snake[0];
+      const ghx = offX + head0.x * cell + cell / 2;
+      const ghy = offY + head0.y * cell + cell / 2;
+      const gr  = cell * 0.46;
+      [-1, 1].forEach(side => {
+        const perpX = -dir.y * side;
+        const perpY =  dir.x * side;
+        const baseX = ghx - dir.x * gr * 0.05 + perpX * gr * 0.45;
+        const baseY = ghy - dir.y * gr * 0.05 + perpY * gr * 0.45;
+        for (let g = -1; g <= 1; g++) {
+          const angle = g * 0.55;
+          const cos = Math.cos(angle), sin = Math.sin(angle);
+          const fanX = perpX * cos - perpY * sin;
+          const fanY = perpX * sin + perpY * cos;
+          const px = baseX + fanX * gr * 0.50;
+          const py = baseY + fanY * gr * 0.50;
+          const pr = gr * 0.30;
+          ctx.fillStyle = '#ffadd0';
+          ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.beginPath(); ctx.arc(px - fanX*pr*0.25, py - fanY*pr*0.25, pr * 0.45, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+    }
+
+    /* Axolotl body — soft pink with subtle freckles */
     snake.forEach((s, i) => {
       const isHead = i === 0;
       const t = i / Math.max(1, snake.length - 1);
@@ -561,29 +636,29 @@
       const sy = offY + s.y * cell + cell / 2;
       const r  = cell * (isHead ? 0.46 : 0.40 - t * 0.10);
 
-      /* body — gradient from bright to deeper green */
+      /* body — pink gradient from soft highlight to deeper rose */
       const grad = ctx.createRadialGradient(sx - r*0.3, sy - r*0.3, r*0.2, sx, sy, r);
-      grad.addColorStop(0, isHead ? '#a8d96a' : '#86b84a');
-      grad.addColorStop(1, isHead ? '#3a6a1a' : '#2a5210');
+      grad.addColorStop(0, isHead ? '#ffd2e3' : '#ffbdd2');
+      grad.addColorStop(1, isHead ? '#d75a8e' : '#bc4677');
       ctx.fillStyle = grad;
       ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
 
-      /* spots */
+      /* tiny freckles down the back */
       if (!isHead && i % 2 === 0) {
-        ctx.fillStyle = '#3a5a18';
-        ctx.beginPath(); ctx.arc(sx, sy, r * 0.30, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(150, 50, 90, 0.45)';
+        ctx.beginPath(); ctx.arc(sx, sy, r * 0.18, 0, Math.PI * 2); ctx.fill();
       }
     });
 
-    /* Eyes on head — facing direction of movement */
+    /* Face on head — eyes + a little smile when moving */
     if (snake.length) {
       const head = snake[0];
       const hx = offX + head.x * cell + cell / 2;
       const hy = offY + head.y * cell + cell / 2;
       const r  = cell * 0.46;
       const eyeR = Math.max(2, r * 0.18);
-      const offForward = r * 0.40;
-      const offSide    = r * 0.36;
+      const offForward = r * 0.36;
+      const offSide    = r * 0.34;
       const fwdX = dir.x * offForward;
       const fwdY = dir.y * offForward;
       const sideX = -dir.y * offSide;
@@ -596,13 +671,26 @@
         ctx.fillStyle = '#1a1a1a';
         ctx.beginPath(); ctx.arc(ex + dir.x * eyeR * 0.4, ey + dir.y * eyeR * 0.4, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
       });
-      /* tiny tongue when running */
+      /* Axolotl smile — short perpendicular mouth at the front of the
+         head, slightly curved into a smile, only when moving. */
       if (running) {
-        ctx.strokeStyle = '#c93a3a';
+        const mouthCx = hx + dir.x * r * 0.58;
+        const mouthCy = hy + dir.y * r * 0.58;
+        const half = r * 0.22;
+        const perpX = -dir.y;
+        const perpY =  dir.x;
+        const lx = mouthCx - perpX * half;
+        const ly = mouthCy - perpY * half;
+        const rx = mouthCx + perpX * half;
+        const ry = mouthCy + perpY * half;
+        const cx = mouthCx + dir.x * r * 0.10;
+        const cy = mouthCy + dir.y * r * 0.10;
+        ctx.strokeStyle = '#a83a64';
         ctx.lineWidth = Math.max(1, r * 0.10);
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(hx + fwdX * 1.15, hy + fwdY * 1.15);
-        ctx.lineTo(hx + fwdX * 1.6,  hy + fwdY * 1.6);
+        ctx.moveTo(lx, ly);
+        ctx.quadraticCurveTo(cx, cy, rx, ry);
         ctx.stroke();
       }
     }
@@ -652,7 +740,16 @@
     }
     overlay.classList.add('show');
   }
-  goBtn.addEventListener('click', start);
+  goBtn.addEventListener('click', () => {
+    if (lbPaused) {
+      lbPaused = false;
+      overlay.classList.remove('show');
+      running = true; last = 0; acc = 0;
+      raf = requestAnimationFrame(tick);
+    } else {
+      start();
+    }
+  });
 
   /* ---------- Touch / pointer gestures ---------- */
   let sx = 0, sy = 0, swiping = false;
