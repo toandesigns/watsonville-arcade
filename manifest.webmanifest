@@ -1,0 +1,19 @@
+{
+  "name": "Watsonville Arcade",
+  "short_name": "Arcade",
+  "description": "A tiny arcade for Atlas, Dakota & co",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ff8c42",
+  "theme_color": "#ff8c42",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
